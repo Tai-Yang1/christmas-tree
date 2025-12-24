@@ -2,163 +2,181 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>圣诞快乐 | 圣诞树🎄</title>
-    <!-- 适配GitHub Pages的SEO和缓存 -->
-    <meta name="description" content="手机/电脑通用的动态圣诞树，圣诞快乐！">
-    <meta name="author" content="Your Name">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='90' font-size='90'>🎄</text></svg>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>粒子圣诞树🎄</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent; /* 去除手机点击高亮 */
-        }
-        body {
-            background: #000;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #000; 
+            min-height: 100vh; 
+            overflow: hidden;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            font-size: clamp(8px, 2vw, 16px); /* 响应式字体，适配所有屏幕 */
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            overflow: hidden; /* 避免手机端滚动 */
         }
-        .christmas-tree {
-            text-align: center;
-            line-height: 1;
-            margin-bottom: 20px;
-            z-index: 2; /* 确保树在雪花上层 */
+        canvas { 
+            display: block; 
+            width: 100vw; 
+            height: 100vh;
         }
-        /* 圣诞树颜色渐变 */
-        .tree-top { color: #2ecc71; }
-        .tree-middle { color: #27ae60; }
-        .tree-bottom { color: #1e8449; }
-        .tree-trunk { color: #8b4513; }
-        .star { 
-            color: #f1c40f; 
-            animation: flash 1s infinite alternate;
-            text-shadow: 0 0 10px #f1c40f; /* 星星发光效果 */
-        }
-        .decor { 
-            color: #e74c3c; 
-            animation: blink 1.5s infinite alternate;
-        }
-        
-        /* 动画优化（适配移动端性能） */
-        @keyframes flash {
-            from { opacity: 0.7; transform: scale(1); }
-            to { opacity: 1; transform: scale(1.1); }
-        }
-        @keyframes blink {
-            from { opacity: 0.6; }
-            to { opacity: 1; }
-        }
-        @keyframes fall {
-            to {
-                top: 100vh;
-                transform: translateX(calc(var(--x-offset) * 1px));
-                opacity: 0;
-            }
-        }
-        /* 雪花样式（性能优化） */
-        .snowflake {
+        .text {
             position: absolute;
             color: #fff;
-            pointer-events: none;
-            user-select: none;
-            opacity: var(--opacity);
-            animation: fall var(--duration) linear infinite;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: clamp(12px, 3vw, 24px);
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
             z-index: 1;
-        }
-        /* 适配超小手机屏幕 */
-        @media (max-width: 320px) {
-            .christmas-tree {
-                transform: scale(0.8);
-            }
-        }
-        /* 适配横屏手机 */
-        @media (orientation: landscape) and (max-height: 400px) {
-            .christmas-tree {
-                transform: scale(0.7);
-            }
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
         }
     </style>
 </head>
 <body>
-    <div class="christmas-tree">
-        <div class="star">★</div>
-        <div class="tree-top">   *   </div>
-        <div class="tree-top">  ***  </div>
-        <div class="tree-top"> ***** </div>
-        <div class="tree-middle">*******</div>
-        <div class="tree-middle">*********</div>
-        <div class="tree-bottom">***********</div>
-        <div class="tree-bottom">*************</div>
-        <div class="decor">  ●   ●   </div>
-        <div class="tree-trunk">    |||    </div>
-        <div class="tree-trunk">    |||    </div>
-    </div>
-    <p style="z-index: 2; margin-top: 10px;">🎄 圣诞快乐！🎄</p>
+    <div class="text">Merry Christmas</div>
+    <canvas id="canvas"></canvas>
 
     <script>
-        // 雪花生成（性能优化：限制数量，避免卡顿）
-        const MAX_SNOWFLAKES = 50; // 适配手机性能，限制雪花数量
-        let snowflakeCount = 0;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let treePoints = [];
+        let radius = Math.min(canvas.width, canvas.height) * 0.4; // 适配屏幕大小
 
-        function createSnowflake() {
-            if (snowflakeCount >= MAX_SNOWFLAKES) return;
+        // 适配屏幕大小
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            radius = Math.min(canvas.width, canvas.height) * 0.4;
+            initTree();
+            initParticles();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
-            const snowflake = document.createElement('div');
-            snowflake.className = 'snowflake';
-            
-            // 随机属性（适配不同屏幕）
-            const size = Math.random() * 8 + 4;
-            const duration = Math.random() * 10 + 5;
-            const opacity = Math.random() * 0.8 + 0.2;
-            const xOffset = Math.random() * 50 - 25; // 水平偏移
-            const left = Math.random() * 100; // 百分比，适配任意宽度
+        // 生成圣诞树轮廓点
+        function initTree() {
+            treePoints = [];
+            // 树顶星星
+            const starPoints = getStarPoints(canvas.width/2, canvas.height/2 - radius*0.8, radius*0.15);
+            treePoints.push(...starPoints);
 
-            // 通过CSS变量赋值，避免重复样式
-            snowflake.style.setProperty('--duration', `${duration}s`);
-            snowflake.style.setProperty('--opacity', opacity);
-            snowflake.style.setProperty('--x-offset', xOffset);
-            snowflake.style.fontSize = `${size}px`;
-            snowflake.style.top = '-10px';
-            snowflake.style.left = `${left}vw`;
-            snowflake.textContent = '❄️';
+            // 树身（分层三角形）
+            const layers = 6;
+            for (let i = 0; i < layers; i++) {
+                const y = canvas.height/2 - radius*0.6 + (radius * i / layers);
+                const w = radius * (1 - i/(layers*1.2));
+                const layerPoints = getTrianglePoints(canvas.width/2, y, w, radius*0.2);
+                treePoints.push(...layerPoints);
+            }
 
-            document.body.appendChild(snowflake);
-            snowflakeCount++;
-
-            // 雪花落地后移除，释放内存
-            setTimeout(() => {
-                snowflake.remove();
-                snowflakeCount--;
-            }, duration * 1000);
+            // 树底圆环
+            const circlePoints = getCirclePoints(canvas.width/2, canvas.height/2 + radius*0.4, radius*0.8, 80);
+            treePoints.push(...circlePoints);
         }
 
-        // 平稳生成雪花（避免瞬间卡顿）
-        const snowInterval = setInterval(createSnowflake, 300);
-
-        // 页面隐藏时暂停雪花（性能优化）
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                clearInterval(snowInterval);
-            } else {
-                setInterval(createSnowflake, 300);
+        // 生成星星点
+        function getStarPoints(x, y, size) {
+            const points = [];
+            const spikes = 5;
+            for (let i = 0; i < spikes * 2; i++) {
+                const angle = (i * Math.PI / spikes) - Math.PI/2;
+                const len = i % 2 === 0 ? size : size * 0.4;
+                points.push({
+                    x: x + Math.cos(angle) * len,
+                    y: y + Math.sin(angle) * len
+                });
             }
-        });
+            return points;
+        }
 
-        // 适配手机横屏/竖屏切换
-        window.addEventListener('resize', () => {
-            document.body.querySelectorAll('.snowflake').forEach(s => s.remove());
-            snowflakeCount = 0;
-        });
+        // 生成三角形点
+        function getTrianglePoints(x, y, width, height) {
+            const points = [];
+            const segments = 20;
+            // 左斜边
+            for (let i = 0; i < segments; i++) {
+                const t = i / segments;
+                points.push({
+                    x: x - width/2 + (width * t * 0.5),
+                    y: y + (height * t)
+                });
+            }
+            // 右斜边
+            for (let i = segments; i >= 0; i--) {
+                const t = i / segments;
+                points.push({
+                    x: x + width/2 - (width * t * 0.5),
+                    y: y + (height * t)
+                });
+            }
+            return points;
+        }
+
+        // 生成圆环点
+        function getCirclePoints(x, y, r, count) {
+            const points = [];
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                points.push({
+                    x: x + Math.cos(angle) * r,
+                    y: y + Math.sin(angle) * r
+                });
+            }
+            return points;
+        }
+
+        // 初始化粒子
+        function initParticles() {
+            particles = [];
+            const particleCount = 800; // 粒子数量
+            for (let i = 0; i < particleCount; i++) {
+                const point = treePoints[Math.floor(Math.random() * treePoints.length)];
+                particles.push({
+                    x: point.x + (Math.random() - 0.5) * 10,
+                    y: point.y + (Math.random() - 0.5) * 10,
+                    targetX: point.x,
+                    targetY: point.y,
+                    size: Math.random() * 2 + 1,
+                    speed: Math.random() * 0.3 + 0.1,
+                    color: getRandomColor()
+                });
+            }
+        }
+
+        // 随机颜色（粉色/白色/金色）
+        function getRandomColor() {
+            const colors = [
+                'rgba(255, 100, 150, 0.8)',
+                'rgba(255, 255, 255, 0.9)',
+                'rgba(255, 220, 100, 0.7)'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // 动画循环
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach(p => {
+                // 粒子向目标点移动
+                p.x += (p.targetX - p.x) * p.speed;
+                p.y += (p.targetY - p.y) * p.speed;
+                
+                // 绘制粒子
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // 启动
+        initTree();
+        initParticles();
+        animate();
     </script>
 </body>
 </html>
